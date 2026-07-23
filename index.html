@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FitNova — AI Fitness Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="mark">FN</span>FitNova</div>
+  <nav class="tabs" id="navTabs">
+    <button data-tab="onboard" class="active">Profile</button>
+    <button data-tab="dashboard">Vitals</button>
+    <button data-tab="workout">Workout</button>
+    <button data-tab="meals">Meals</button>
+    <button data-tab="progress">Progress</button>
+    <button data-tab="reminders">Reminders</button>
+    <button data-tab="report">Report</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ONBOARDING -->
+  <section id="onboard" class="active">
+    <h1 class="page-title">Tell us about you</h1>
+    <p class="page-sub">FitNova uses this to calculate your vitals and build a plan around your goal.</p>
+    <div class="card">
+      <div class="field">
+        <label for="userName">Name</label>
+        <input type="text" id="userName" placeholder="e.g. Jordan" />
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="age">Age</label>
+          <input type="number" id="age" placeholder="e.g. 28" min="14" max="90" />
+        </div>
+        <div class="field">
+          <label for="gender">Gender</label>
+          <select id="gender">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="height">Height (cm)</label>
+          <input type="number" id="height" placeholder="e.g. 172" min="120" max="230" />
+        </div>
+        <div class="field">
+          <label for="weight">Weight (kg)</label>
+          <input type="number" id="weight" placeholder="e.g. 68" min="30" max="250" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Activity level</label>
+        <div class="choice-row" id="activityRow">
+          <div class="choice" data-val="1.2">Sedentary</div>
+          <div class="choice" data-val="1.375">Light</div>
+          <div class="choice" data-val="1.55">Moderate</div>
+          <div class="choice" data-val="1.725">Active</div>
+          <div class="choice" data-val="1.9">Very active</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Goal</label>
+        <div class="choice-row" id="goalRow">
+          <div class="choice" data-val="lose">Lose weight</div>
+          <div class="choice" data-val="maintain">Maintain</div>
+          <div class="choice" data-val="gain">Build muscle</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="equipment">Available equipment (optional)</label>
+        <input type="text" id="equipment" placeholder="e.g. dumbbells, resistance bands, or none — bodyweight only" />
+      </div>
+      <div class="field">
+        <label for="diet">Dietary preference (optional)</label>
+        <input type="text" id="diet" placeholder="e.g. vegetarian, no dairy, halal" />
+      </div>
+
+      <button class="btn primary" id="calcBtn" style="width:100%; margin-top:6px;">Calculate my vitals</button>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="dashboard">
+    <h1 class="page-title">Your vitals</h1>
+    <p class="page-sub" id="dashSub">Based on your profile.</p>
+    <div class="dial-row" id="dialRow"></div>
+    <div class="card" style="margin-bottom:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <div style="font-weight:600; font-size:15px; margin-bottom:4px;">Ready for your AI plan?</div>
+          <div style="color:var(--text-dim); font-size:13.5px;">Generates a full weekly workout split and daily meal plan tailored to your numbers.</div>
+        </div>
+        <button class="btn primary" id="genBtn">Generate AI plan</button>
+      </div>
+      <div id="genStatus"></div>
+    </div>
+  </section>
+
+  <!-- WORKOUT -->
+  <section id="workout">
+    <h1 class="page-title">Weekly workout plan</h1>
+    <p class="page-sub">Tailored to your goal and activity level.</p>
+    <div id="workoutContent"><div class="empty-state">Generate your AI plan from the Vitals tab first.</div></div>
+  </section>
+
+  <!-- MEALS -->
+  <section id="meals">
+    <h1 class="page-title">Daily meal plan</h1>
+    <p class="page-sub">Built around your calorie target and macros.</p>
+    <div id="mealsContent"><div class="empty-state">Generate your AI plan from the Vitals tab first.</div></div>
+  </section>
+
+  <!-- PROGRESS -->
+  <section id="progress">
+    <h1 class="page-title">Progress tracking</h1>
+    <p class="page-sub">Log your weight regularly to see your trend.</p>
+    <div class="card">
+      <div class="log-row">
+        <input type="number" id="logWeight" placeholder="Today's weight (kg)" />
+        <button class="btn primary" id="logBtn">Log entry</button>
+      </div>
+      <div style="position:relative; height:220px; margin-bottom:10px;">
+        <canvas id="progressChart" role="img" aria-label="Line chart of logged body weight over time"></canvas>
+      </div>
+      <div class="section-title" style="margin-top:10px;">History</div>
+      <div id="historyList"></div>
+    </div>
+  </section>
+
+  <!-- REMINDERS -->
+  <section id="reminders">
+    <h1 class="page-title">Reminders</h1>
+    <p class="page-sub">Set nudges for workouts, water, and meals. These fire while FitNova is open in your browser tab.</p>
+    <div class="card">
+      <div class="grid2" style="grid-template-columns:2fr 1fr 1fr; align-items:end; gap:12px;">
+        <div class="field" style="margin-bottom:0;">
+          <label for="remText">Reminder</label>
+          <input type="text" id="remText" placeholder="e.g. Drink water" />
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label for="remTime">Time</label>
+          <input type="time" id="remTime" />
+        </div>
+        <button class="btn primary" id="remBtn" style="height:41px;">Add</button>
+      </div>
+    </div>
+    <div class="section-title">Your reminders</div>
+    <div class="card" id="reminderList"><div class="empty-state">No reminders yet.</div></div>
+  </section>
+
+  <!-- REPORT -->
+  <section id="report">
+    <h1 class="page-title">Downloadable report</h1>
+    <p class="page-sub">A complete snapshot of your profile, vitals, plans, and progress — ready to save or share.</p>
+
+    <div class="card" id="reportIntro">
+      <p style="color:var(--text-dim); font-size:14px; margin-bottom:18px;">Includes your BMI, BMR, calorie target, water intake, current workout plan, meal plan, and weight history logged so far.</p>
+      <button class="btn primary" id="genReportBtn">Generate report</button>
+    </div>
+
+    <div id="reportOutput" style="display:none;">
+      <div class="report-doc" id="reportDoc"></div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
+        <button class="btn primary" id="pdfBtn">Download PDF</button>
+        <button class="btn" id="copyBtn">Copy summary</button>
+      </div>
+      <div id="pdfLinkBox"></div>
+      <textarea id="copyFallback" readonly style="display:none; width:100%; height:160px; margin-top:12px; background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:12px; color:var(--text); font-family:var(--mono); font-size:12px; resize:vertical;"></textarea>
+      <p id="copyFallbackHint" style="display:none; font-size:12.5px; color:var(--text-dim); margin-top:6px;">Automatic copy isn't available here — the text above is selected, press Ctrl+C (or Cmd+C on Mac) to copy it.</p>
+    </div>
+  </section>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
