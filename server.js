@@ -9,7 +9,7 @@ const OpenAI = require("openai");
 
 const PORT = process.env.PORT || 3001;
 const DATA_DIR = path.join(__dirname, 'data');
-const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
+const FRONTEND_DIR = __dirname;
 
 if (!process.env.GROQ_API_KEY) {
   console.error("❌ GROQ_API_KEY is not found!");
@@ -129,7 +129,7 @@ app.post('/api/data/:userId', (req, res) => {
 });
 
 // Fallback: send index.html for any other route (simple SPA support)
-app.get('*', (req, res) => {
+app.get('/', (req, res) => {
   res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
 });
 
