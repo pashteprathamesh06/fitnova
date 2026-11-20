@@ -1,138 +1,428 @@
+
 require('dotenv').config();
-console.log("Loaded GROQ_API_KEY:", process.env.GROQ_API_KEY);
 
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
-const OpenAI = require("openai");
+const OpenAI = require('openai');
 
 const PORT = process.env.PORT || 3001;
 const DATA_DIR = path.join(__dirname, 'data');
 const FRONTEND_DIR = __dirname;
 
+// ------------------------------------------
+// 1. CHECK API KEY
+// ------------------------------------------
+
 if (!process.env.GROQ_API_KEY) {
-  console.error("❌ GROQ_API_KEY is not found!");
-  process.exit(1);
+    console.error('❌ GROQ_API_KEY is not found!');
+    process.exit(1);
 }
 
-console.log("✅ GROQ_API_KEY loaded:", process.env.GROQ_API_KEY.substring(0, 12) + "...");
+console.log('✅ GROQ_API_KEY loaded successfully');
 
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+// ------------------------------------------
+// 2. CREATE DATA DIRECTORY
+// ------------------------------------------
+
+if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// ------------------------------------------
+// 3. GROQ AI CLIENT
+// ------------------------------------------
 
 const client = new OpenAI({
     apiKey: process.env.GROQ_API_KEY,
-    baseURL: "https://api.groq.com/openai/v1"
+    baseURL: 'https://api.groq.com/openai/v1'
 });
 
+const MODEL = 'openai/gpt-oss-120b';
+
+// ------------------------------------------
+// 4. EXPRESS SERVER
+// ------------------------------------------
+
 const app = express();
+
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-// Serve the static frontend
+// Serve frontend files
 app.use(express.static(FRONTEND_DIR));
 
-/* ---------------------------------------------------------
-   POST /api/plan
-   Body: { profile: {...}, vitals: {...} }
-   Calls Claude server-side (API key never reaches the browser)
-   and returns a structured workout + meal plan as JSON.
---------------------------------------------------------- */
+// ------------------------------------------
+// 5. HEALTH CHECK
+// ------------------------------------------
+
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'OK',
+        message: 'FitNova backend is running',
+        ai: 'Groq API configured',
+        model: MODEL
+    });
+});
+
+// ------------------------------------------
+// 6. GENERATE AI FITNESS PLAN
+// POST /api/plan
+// ------------------------------------------
+
 app.post('/api/plan', async (req, res) => {
-  try {
-    const { profile, vitals } = req.body || {};
-    if (!profile || !vitals) {
-      return res.status(400).json({ error: 'Missing profile or vitals in request body.' });
-    }
 
-    const prompt = `You are a certified fitness coach and nutritionist. Based on this person's profile, generate a personalized 7-day workout plan and a daily meal plan.
+    try {
 
-Profile: name ${profile.name}, age ${profile.age}, gender ${profile.gender}, height ${profile.height}cm, weight ${profile.weight}kg, goal: ${profile.goal}, activity level multiplier: ${profile.activity}, equipment available: ${profile.equipment || 'none specified, assume bodyweight'}, dietary preference: ${profile.diet || 'none specified'}.
-Calculated targets: BMI ${Number(vitals.bmi).toFixed(1)}, BMR ${Math.round(vitals.bmr)} kcal, daily calorie target ${Math.round(vitals.calorieTarget)} kcal, water intake ${vitals.water} L.
+        const { profile, vitals } = req.body || {};
 
-Respond with ONLY valid JSON (no markdown, no commentary) matching exactly this shape:
+        // Validate request
+        if (!profile || !vitals) {
+            return res.status(400).json({
+                error: 'Missing profile or vitals in request body.'
+            });
+        }
+
+        if (
+            !Number.isFinite(Number(profile.age)) ||
+            !Number.isFinite(Number(profile.height)) ||
+            !Number.isFinite(Number(profile.weight))
+        ) {
+            return res.status(400).json({
+                error: 'Invalid profile information.'
+            });
+        }
+
+        // ----------------------------------
+        // 7. AI PROMPT
+        // ----------------------------------
+
+        const prompt = `
+You are a helpful fitness and general wellness assistant.
+
+Create a personalized 7-day beginner-friendly fitness
+schedule and a balanced daily meal suggestion.
+
+PROFILE:
+
+Name: ${profile.name || 'User'}
+Age: ${profile.age}
+Gender: ${profile.gender || 'Not specified'}
+Height: ${profile.height} cm
+Weight: ${profile.weight} kg
+Goal: ${profile.goal || 'General fitness'}
+Activity: ${profile.activity || 'Moderate'}
+Equipment: ${profile.equipment || 'Bodyweight'}
+Diet preference: ${profile.diet || 'No preference'}
+
+IMPORTANT SAFETY RULES:
+
+1. Recommend safe, age-appropriate physical activity.
+2. Include adequate rest and recovery.
+3. Avoid extreme exercise routines.
+4. Do not recommend restrictive diets or skipping meals.
+5. Suggest balanced, varied meals.
+6. Do not prescribe calorie restriction or weight-loss targets.
+7. Do not recommend supplements or performance-enhancing substances.
+8. For users under 18, keep recommendations general and encourage
+   involving a parent, guardian or qualified professional for
+   individualized fitness and nutrition guidance.
+9. Keep all recommendations realistic and beginner-friendly.
+
+OUTPUT REQUIREMENTS:
+
+Return ONLY valid JSON.
+
+Use exactly this structure:
+
 {
   "workout": [
-    {"day":"Monday","focus":"Upper body","isRest":false,"exercises":[{"name":"Push-ups","sets":"3","reps":"12-15"}]},
-    ... one object per day, Monday through Sunday, include at least one rest day
+    {
+      "day": "Monday",
+      "focus": "Upper body",
+      "isRest": false,
+      "exercises": [
+        {
+          "name": "Push-ups",
+          "sets": "2",
+          "reps": "8-10"
+        }
+      ]
+    }
   ],
   "meals": [
-    {"meal":"Breakfast","items":"short description of what to eat","calories":450},
-    {"meal":"Lunch","items":"...","calories":600},
-    {"meal":"Dinner","items":"...","calories":550},
-    {"meal":"Snacks","items":"...","calories":200}
+    {
+      "meal": "Breakfast",
+      "items": "Oats, milk and fruit",
+      "calories": null
+    },
+    {
+      "meal": "Lunch",
+      "items": "Rice, dal and vegetables",
+      "calories": null
+    },
+    {
+      "meal": "Dinner",
+      "items": "Roti, vegetables and protein source",
+      "calories": null
+    },
+    {
+      "meal": "Snacks",
+      "items": "Fruit and yogurt",
+      "calories": null
+    }
   ]
 }
-Keep exercise lists to 4-6 items per day. Make meal calories sum close to the daily calorie target. Keep all text concise.`;
 
-    const response = await client.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: [
-        {
-            role: "user",
-            content: prompt
+Generate all seven days from Monday to Sunday.
+Include at least one rest day.
+Keep exercise lists to 4-6 items on active days.
+Keep meal descriptions concise.
+Do not include markdown or text outside the JSON.
+`;
+
+        // ----------------------------------
+        // 8. GROQ API REQUEST
+        // ----------------------------------
+
+        console.log('🤖 Generating FitNova AI plan...');
+        console.log('Using model:', MODEL);
+
+        const response = await client.chat.completions.create({
+
+            model: MODEL,
+
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are a helpful fitness and wellness assistant. Follow the requested JSON format and safety instructions.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+
+            max_completion_tokens: 4000,
+
+            response_format: {
+                type: 'json_object'
+            },
+
+            include_reasoning: false
+
+        });
+
+        // ----------------------------------
+        // 9. READ AI RESPONSE
+        // ----------------------------------
+
+        const text = response.choices?.[0]?.message?.content;
+
+        if (!text) {
+            throw new Error('AI returned an empty response.');
         }
-    ],
-    max_tokens: 4000
-});
 
-const text = response.choices[0].message.content;
-    const clean = text.replace(/```json|```/g, '').trim();
+        console.log('✅ AI response received');
 
-    let plan;
-    try {
-      plan = JSON.parse(clean);
-    } catch (parseErr) {
-      console.error('Failed to parse model output as JSON:', text);
-      return res.status(502).json({ error: 'The model returned an unexpected format. Try again.' });
+        // ----------------------------------
+        // 10. PARSE JSON
+        // ----------------------------------
+
+        let plan;
+
+        try {
+
+            plan = JSON.parse(text);
+
+        } catch (parseErr) {
+
+            console.error('JSON parsing failed:', parseErr.message);
+
+            return res.status(502).json({
+                error: 'AI returned invalid JSON. Please try again.'
+            });
+
+        }
+
+        // ----------------------------------
+        // 11. VALIDATE AI PLAN
+        // ----------------------------------
+
+        if (
+            !Array.isArray(plan.workout) ||
+            !Array.isArray(plan.meals) ||
+            plan.workout.length !== 7
+        ) {
+            return res.status(502).json({
+                error: 'AI generated an incomplete fitness plan. Please try again.'
+            });
+        }
+
+        // ----------------------------------
+        // 12. SEND PLAN TO FRONTEND
+        // ----------------------------------
+
+        console.log('✅ FitNova AI plan generated successfully');
+
+        return res.json({
+            success: true,
+            plan: plan
+        });
+
+    } catch (err) {
+
+        // ----------------------------------
+        // 13. ERROR HANDLING
+        // ----------------------------------
+
+        console.error('❌ Plan generation failed:', {
+            message: err.message,
+            code: err.code,
+            status: err.status
+        });
+
+        if (err.status === 401) {
+            return res.status(401).json({
+                error: 'Invalid Groq API key. Check your Render environment variables.'
+            });
+        }
+
+        if (err.status === 429) {
+            return res.status(429).json({
+                error: 'AI request limit reached. Please try again later.'
+            });
+        }
+
+        if (err.code === 'model_not_found') {
+            return res.status(502).json({
+                error: 'AI model unavailable. Check the configured Groq model.'
+            });
+        }
+
+        return res.status(500).json({
+            error: 'Failed to generate plan. Check backend logs.'
+        });
+
     }
 
-    res.json({ plan });
-  } catch (err) {
-    console.error('Plan generation failed:', err);
-    res.status(500).json({ error: 'Failed to generate plan. Check your API key and server logs.' });
-  }
 });
 
-/* ---------------------------------------------------------
-   GET/POST /api/data/:userId
-   Simple per-user JSON file persistence (profile, vitals,
-   plan, weight history, reminders). Good enough for local
-   / single-instance use; swap for a real DB before scaling.
---------------------------------------------------------- */
+// ------------------------------------------
+// 14. SAFE USER FILE
+// ------------------------------------------
+
 function safeUserFile(userId) {
-  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(userId || '')) return null;
-  return path.join(DATA_DIR, `${userId}.json`);
+
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(userId || '')) {
+        return null;
+    }
+
+    return path.join(DATA_DIR, `${userId}.json`);
 }
 
+// ------------------------------------------
+// 15. GET USER DATA
+// GET /api/data/:userId
+// ------------------------------------------
+
 app.get('/api/data/:userId', (req, res) => {
-  const file = safeUserFile(req.params.userId);
-  if (!file) return res.status(400).json({ error: 'Invalid user id.' });
-  if (!fs.existsSync(file)) return res.json(null);
-  try {
-    const content = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    res.json(content);
-  } catch (err) {
-    res.status(500).json({ error: 'Could not read saved data.' });
-  }
+
+    const file = safeUserFile(req.params.userId);
+
+    if (!file) {
+        return res.status(400).json({
+            error: 'Invalid user id.'
+        });
+    }
+
+    if (!fs.existsSync(file)) {
+        return res.json(null);
+    }
+
+    try {
+
+        const content = JSON.parse(
+            fs.readFileSync(file, 'utf-8')
+        );
+
+        return res.json(content);
+
+    } catch (err) {
+
+        console.error('Data read error:', err.message);
+
+        return res.status(500).json({
+            error: 'Could not read saved data.'
+        });
+
+    }
+
 });
+
+// ------------------------------------------
+// 16. SAVE USER DATA
+// POST /api/data/:userId
+// ------------------------------------------
 
 app.post('/api/data/:userId', (req, res) => {
-  const file = safeUserFile(req.params.userId);
-  if (!file) return res.status(400).json({ error: 'Invalid user id.' });
-  try {
-    fs.writeFileSync(file, JSON.stringify(req.body || {}, null, 2));
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Could not save data.' });
-  }
+
+    const file = safeUserFile(req.params.userId);
+
+    if (!file) {
+        return res.status(400).json({
+            error: 'Invalid user id.'
+        });
+    }
+
+    try {
+
+        fs.writeFileSync(
+            file,
+            JSON.stringify(req.body || {}, null, 2)
+        );
+
+        return res.json({
+            success: true,
+            message: 'User data saved successfully.'
+        });
+
+    } catch (err) {
+
+        console.error('Data save error:', err.message);
+
+        return res.status(500).json({
+            error: 'Could not save data.'
+        });
+
+    }
+
 });
 
-// Fallback: send index.html for any other route (simple SPA support)
+// ------------------------------------------
+// 17. FRONTEND ROUTE
+// ------------------------------------------
+
 app.get('/', (req, res) => {
-  res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
+
+    res.sendFile(
+        path.join(FRONTEND_DIR, 'index.html')
+    );
+
 });
+
+// ------------------------------------------
+// 18. START SERVER
+// ------------------------------------------
 
 app.listen(PORT, () => {
-  console.log(`FitNova running at http://localhost:${PORT}`);
+
+    console.log('--------------------------------');
+    console.log('🚀 FitNova Server Started');
+    console.log(`🌐 Port: ${PORT}`);
+    console.log(`🤖 AI Model: ${MODEL}`);
+    console.log('✅ Backend Ready');
+    console.log('--------------------------------');
+
 });
