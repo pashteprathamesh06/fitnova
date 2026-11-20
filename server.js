@@ -155,22 +155,22 @@ Use exactly this structure:
     {
       "meal": "Breakfast",
       "items": "Oats, milk and fruit",
-      "calories": null
+      "calories": 400
     },
     {
       "meal": "Lunch",
       "items": "Rice, dal and vegetables",
-      "calories": null
+      "calories": 550
     },
     {
       "meal": "Dinner",
       "items": "Roti, vegetables and protein source",
-      "calories": null
+      "calories": 500
     },
     {
       "meal": "Snacks",
       "items": "Fruit and yogurt",
-      "calories": null
+      "calories": 250
     }
   ]
 }
